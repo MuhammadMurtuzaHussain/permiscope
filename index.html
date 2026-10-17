@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PermiScope</title>
+<meta name="description" content="Paste the permissions an app asks for and see what it can know about you, and how much of your identity it could rebuild.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f5f2;--surface:#ffffff;--surface-2:#efede8;--ink:#17161a;--muted:#6b6872;--line:#e2dfd8;
+  --accent:#4f46e5;--accent-ink:#ffffff;--low:#16a34a;--mid:#d97706;--high:#dc2626;--crit:#9f1239;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f0f12;--surface:#18181d;--surface-2:#222229;--ink:#f1f0f4;--muted:#9a98a3;--line:#2d2c34;
+    --accent:#818cf8;--accent-ink:#0f0f12;--low:#4ade80;--mid:#fbbf24;--high:#f87171;--crit:#fb7185;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f0f12;--surface:#18181d;--surface-2:#222229;--ink:#f1f0f4;--muted:#9a98a3;--line:#2d2c34;
+  --accent:#818cf8;--accent-ink:#0f0f12;--low:#4ade80;--mid:#fbbf24;--high:#f87171;--crit:#fb7185;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+header{padding:40px 0 24px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em}
+.brand .dot{width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-size:15px}
+h1{font-size:clamp(28px,5vw,46px);line-height:1.08;letter-spacing:-.035em;margin:28px 0 12px;max-width:780px}
+.lede{color:var(--muted);font-size:17px;max-width:640px;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;margin:28px 0 60px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;font-weight:600}
+label{font-size:14px;font-weight:600;display:block;margin:14px 0 6px}
+input[type=text],textarea{width:100%;font:inherit;font-size:15px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+textarea{min-height:110px;font-family:"JetBrains Mono",monospace;font-size:13px;resize:vertical}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;padding:6px 11px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin-top:6px}
+.perm{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-size:13.5px;background:var(--bg);user-select:none}
+.perm input{margin-top:3px;accent-color:var(--accent)}
+.perm.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--bg))}
+.btnrow{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:14px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+.score{display:flex;align-items:center;gap:20px}
+.ring{--p:0;--c:var(--low);width:120px;height:120px;border-radius:50%;flex:none;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--surface-2) 0);display:grid;place-items:center;transition:--p .6s}
+.ring>div{width:94px;height:94px;border-radius:50%;background:var(--surface);display:grid;place-items:center;text-align:center}
+.ring b{font-size:30px;letter-spacing:-.03em;line-height:1}
+.ring small{display:block;font-size:11px;color:var(--muted)}
+.verdict{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+.verdict-sub{color:var(--muted);margin:0;font-size:14px}
+.section{margin-top:22px}
+.section h3{font-size:15px;margin:0 0 10px}
+.bars .row{display:grid;grid-template-columns:140px 1fr 36px;gap:10px;align-items:center;font-size:13.5px;margin:7px 0}
+.bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .6s}
+.bars .n{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.profile{border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--bg)}
+.profile .p{display:grid;grid-template-columns:120px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.profile .p:last-child{border-bottom:0}
+.profile .k{color:var(--muted)}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:1px}
+.t-low{background:color-mix(in srgb,var(--low) 18%,transparent);color:var(--low)}
+.t-mid{background:color-mix(in srgb,var(--mid) 18%,transparent);color:var(--mid)}
+.t-high{background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high)}
+.list{list-style:none;padding:0;margin:0}
+.list li{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:14px;background:var(--bg)}
+.list li b{display:block;font-size:13.5px}
+.list li span{color:var(--muted);font-size:13px}
+.empty{color:var(--muted);text-align:center;padding:50px 10px}
+.empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
+.compare{margin-top:22px}
+.compare table{width:100%;border-collapse:collapse;font-size:13.5px}
+.compare td,.compare th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+.compare th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.compare button{background:none;border:0;color:var(--muted);cursor:pointer;font:inherit}
+footer{color:var(--muted);font-size:13px;padding:0 0 40px}
+@media (max-width:520px){.bars .row{grid-template-columns:100px 1fr 30px}.profile .p{grid-template-columns:92px 1fr}.score{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand"><div class="dot">◎</div>PermiScope</div>
+  <h1>See the version of you that an app can rebuild.</h1>
+  <p class="lede">Enter the permissions an app asks for when you install it. PermiScope maps them to the data they expose, then builds the profile the app could infer about you, and tells you how close that gets to identifying you.</p>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <h2>1 · The app</h2>
+    <label for="appName">App name</label>
+    <input id="appName" type="text" placeholder="e.g. Flashlight Pro" autocomplete="off">
+    <label>Quick presets</label>
+    <div class="presets" id="presets"></div>
+
+    <label>2 · Permissions it requests</label>
+    <div class="perms" id="perms"></div>
+
+    <label for="paste">Or paste raw permissions (Android manifest, iOS Info.plist keys, or plain words)</label>
+    <textarea id="paste" placeholder="android.permission.ACCESS_FINE_LOCATION&#10;NSContactsUsageDescription&#10;camera, microphone"></textarea>
+    <div class="hint">Nothing leaves your browser. All analysis runs on this page.</div>
+
+    <div class="btnrow">
+      <button class="btn primary" id="analyze">Build my profile</button>
+      <button class="btn" id="save">Save to comparison</button>
+      <button class="btn" id="clear">Clear</button>
+    </div>
+  </section>
+
+  <section class="card" id="out">
+    <div class="empty"><b>No app analysed yet</b>Pick a preset or tick a few permissions, then build the profile.</div>
+  </section>
+</div>
+
+<footer class="wrap" style="padding-left:0;padding-right:0">PermiScope estimates what is possible from the permissions alone. Real apps may collect more through SDKs, servers and data brokers, or less if they behave well.</footer>
+</div>
+
+<script>
+// Permission catalogue: id, label, aliases to match raw text, data categories, weight (identity contribution 0-10)
+const PERMS = [
+ {id:'loc_fine', label:'Precise location', alias:['ACCESS_FINE_LOCATION','NSLocationAlwaysAndWhenInUseUsageDescription','NSLocationWhenInUseUsageDescription','precise location','gps','location'], cat:['Location'], w:10},
+ {id:'loc_bg', label:'Background location', alias:['ACCESS_BACKGROUND_LOCATION','NSLocationAlwaysUsageDescription','background location','location always'], cat:['Location','Routine'], w:9},
+ {id:'loc_coarse', label:'Approximate location', alias:['ACCESS_COARSE_LOCATION','approximate location','coarse location'], cat:['Location'], w:4},
+ {id:'contacts', label:'Contacts', alias:['READ_CONTACTS','WRITE_CONTACTS','NSContactsUsageDescription','contacts','address book'], cat:['Social graph'], w:9},
+ {id:'camera', label:'Camera', alias:['CAMERA','NSCameraUsageDescription','camera'], cat:['Biometrics','Media'], w:7},
+ {id:'mic', label:'Microphone', alias:['RECORD_AUDIO','NSMicrophoneUsageDescription','microphone','mic','audio'], cat:['Biometrics','Conversations'], w:7},
+ {id:'photos', label:'Photos & media', alias:['READ_MEDIA_IMAGES','READ_MEDIA_VIDEO','READ_EXTERNAL_STORAGE','NSPhotoLibraryUsageDescription','photos','gallery','storage','media'], cat:['Media','Location','Biometrics'], w:8},
+ {id:'calendar', label:'Calendar', alias:['READ_CALENDAR','WRITE_CALENDAR','NSCalendarsUsageDescription','calendar'], cat:['Routine','Social graph'], w:6},
+ {id:'sms', label:'SMS / messages', alias:['READ_SMS','RECEIVE_SMS','SEND_SMS','sms','messages'], cat:['Conversations','Finance','Social graph'], w:9},
+ {id:'calls', label:'Call log & phone', alias:['READ_CALL_LOG','READ_PHONE_STATE','CALL_PHONE','READ_PHONE_NUMBERS','call log','phone','phone state'], cat:['Social graph','Device ID'], w:8},
+ {id:'accounts', label:'Accounts on device', alias:['GET_ACCOUNTS','accounts','email'], cat:['Identity'], w:8},
+ {id:'health', label:'Health & fitness', alias:['BODY_SENSORS','ACTIVITY_RECOGNITION','NSHealthShareUsageDescription','NSMotionUsageDescription','health','fitness','motion','body sensors'], cat:['Health','Routine'], w:7},
+ {id:'bt', label:'Bluetooth / nearby', alias:['BLUETOOTH_SCAN','BLUETOOTH_CONNECT','NEARBY_WIFI_DEVICES','NSBluetoothAlwaysUsageDescription','bluetooth','nearby'], cat:['Location','Device ID'], w:5},
+ {id:'wifi', label:'Wi-Fi state', alias:['ACCESS_WIFI_STATE','CHANGE_WIFI_STATE','wifi','wi-fi'], cat:['Location','Device ID'], w:3},
+ {id:'tracking', label:'Cross-app tracking (IDFA/Ad ID)', alias:['AD_ID','NSUserTrackingUsageDescription','tracking','advertising id','idfa'], cat:['Device ID','Interests'], w:7},
+ {id:'usage', label:'App usage stats', alias:['PACKAGE_USAGE_STATS','QUERY_ALL_PACKAGES','usage stats','installed apps'], cat:['Interests','Routine'], w:6},
+ {id:'notif', label:'Notification access', alias:['BIND_NOTIFICATION_LISTENER_SERVICE','notification access','read notifications'], cat:['Conversations','Finance','Social graph'], w:8},
+ {id:'a11y', label:'Accessibility service', alias:['BIND_ACCESSIBILITY_SERVICE','accessibility'], cat:['Conversations','Finance','Interests','Identity'], w:10},
+ {id:'clipboard', label:'Clipboard', alias:['clipboard','paste'], cat:['Finance','Conversations'], w:4},
+ {id:'files', label:'All files access', alias:['MANAGE_EXTERNAL_STORAGE','all files','documents','files'], cat:['Identity','Finance','Media'], w:8},
+ {id:'speech', label:'Speech recognition', alias:['NSSpeechRecognitionUsageDescription','speech'], cat:['Conversations','Biometrics'], w:5},
+ {id:'faceid', label:'Face ID / biometrics', alias:['USE_BIOMETRIC','NSFaceIDUsageDescription','face id','fingerprint','biometric'], cat:['Biometrics'], w:2},
+ {id:'internet', label:'Internet', alias:['INTERNET','ACCESS_NETWORK_STATE','internet','network'], cat:['Device ID'], w:1},
+];
+
+// What each data category lets an app infer
+const INFER = {
+ 'Location':     {label:'Where you live & work', detail:'Night-time and weekday daytime clusters reveal home and workplace addresses within metres.'},
+ 'Routine':      {label:'Your daily schedule', detail:'Wake, commute, gym, sleep times. Predicts where you will be and when.'},
+ 'Social graph': {label:'Who you know', detail:'Family, partner, close friends and colleagues, ranked by how often you interact.'},
+ 'Biometrics':   {label:'Your face & voice', detail:'Face geometry and voice prints are unique and cannot be changed if leaked.'},
+ 'Media':        {label:'Your private moments', detail:'Photos expose people, places, documents, kids, and embedded GPS & timestamps.'},
+ 'Conversations':{label:'What you say', detail:'Message contents, one-time codes, and spoken audio near the device.'},
+ 'Finance':      {label:'Your money', detail:'Bank SMS, OTPs, payment notifications and receipts reveal income and spending.'},
+ 'Health':       {label:'Your body', detail:'Activity, sleep, heart rate and possibly conditions, pregnancy or medications.'},
+ 'Identity':     {label:'Your real name & accounts', detail:'Email addresses and signed-in accounts link this device to your legal identity.'},
+ 'Device ID':    {label:'A stable tracking ID', detail:'Lets data brokers join this app\'s data with other apps and websites.'},
+ 'Interests':    {label:'What you care about', detail:'Installed apps and usage reveal religion, politics, dating, debt and hobbies.'},
+};
+
+// Reconstructed profile fields: which categories unlock them
+const PROFILE = [
+ {k:'Name', need:[['Identity'],['Social graph','Conversations']], ex:'Real name from accounts or how contacts save you'},
+ {k:'Home', need:[['Location','Routine'],['Media','Location']], ex:'Street-level home address'},
+ {k:'Work / school', need:[['Location','Routine'],['Identity','Calendar']], ex:'Employer or campus'},
+ {k:'Face', need:[['Biometrics','Media'],['Biometrics']], ex:'Face template matchable to other photos online'},
+ {k:'Voice', need:[['Conversations','Biometrics']], ex:'Voice print', cond:'mic'},
+ {k:'Relationships', need:[['Social graph']], ex:'Partner, family and inner circle'},
+ {k:'Schedule', need:[['Routine']], ex:'When you are home, away or asleep'},
+ {k:'Finances', need:[['Finance']], ex:'Banks used, spending patterns, income band'},
+ {k:'Health', need:[['Health']], ex:'Fitness level, sleep, possible conditions'},
+ {k:'Beliefs & habits', need:[['Interests'],['Location','Routine']], ex:'Places of worship, clinics, bars, dating apps'},
+ {k:'Cross-app identity', need:[['Device ID']], ex:'Linkable to your profile at ad networks and brokers'},
+];
+
+const PRESETS = {
+ 'Flashlight app':['camera','loc_fine','contacts','tracking','internet','photos'],
+ 'Social media':['camera','mic','photos','contacts','loc_fine','tracking','internet','notif','calendar'],
+ 'Ride hailing':['loc_fine','loc_bg','contacts','calls','internet','tracking'],
+ 'Banking':['camera','faceid','sms','calls','internet','loc_coarse'],
+ 'Fitness tracker':['health','loc_fine','loc_bg','bt','internet','contacts'],
+ 'Keyboard app':['a11y','clipboard','mic','contacts','internet','speech'],
+ 'Messaging':['contacts','camera','mic','photos','notif','internet','loc_fine','calls'],
+ 'Weather':['loc_fine','loc_bg','internet','tracking','wifi'],
+};
+
+const $ = s => document.querySelector(s);
+const selected = new Set();
+let comparisons = [];
+try{ comparisons = JSON.parse(localStorage.getItem('permiscope') || '[]'); }catch(e){}
+
+function renderPerms(){
+  $('#perms').innerHTML = PERMS.map(p => `<label class="perm ${selected.has(p.id)?'on':''}"><input type="checkbox" data-id="${p.id}" ${selected.has(p.id)?'checked':''}>${p.label}</label>`).join('');
+}
+$('#perms').addEventListener('change', e => {
+  const id = e.target.dataset.id; if(!id) return;
+  e.target.checked ? selected.add(id) : selected.delete(id);
+  e.target.closest('.perm').classList.toggle('on', e.target.checked);
+});
+$('#presets').innerHTML = Object.keys(PRESETS).map(n => `<button class="chip" data-p="${n}">${n}</button>`).join('');
+$('#presets').addEventListener('click', e => {
+  const n = e.target.dataset.p; if(!n) return;
+  selected.clear(); PRESETS[n].forEach(i => selected.add(i));
+  $('#appName').value = n; $('#paste').value = '';
+  renderPerms(); analyze();
+});
+
+function parsePaste(){
+  const txt = $('#paste').value.toLowerCase();
+  if(!txt.trim()) return;
+  const tokens = txt.split(/[\n,;]+/).map(t => t.trim()).filter(Boolean);
+  for(const t of tokens){
+    for(const p of PERMS){
+      if(p.alias.some(a => { a = a.toLowerCase(); return t === a || t.endsWith('.'+a) || t.includes(a); })) selected.add(p.id);
+    }
+  }
+}
+
+function esc(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function compute(){
+  const perms = PERMS.filter(p => selected.has(p.id));
+  const cats = {};
+  perms.forEach(p => p.cat.forEach(c => cats[c] = (cats[c]||0) + p.w));
+  const has = new Set(Object.keys(cats));
+  // Calendar is a pseudo-category for profile matching
+  if(selected.has('calendar')) has.add('Calendar');
+  const fields = PROFILE.map(f => {
+    if(f.cond && !selected.has(f.cond)) return {...f, conf:0};
+    let best = 0;
+    f.need.forEach(req => {
+      const hit = req.filter(r => has.has(r)).length / req.length;
+      best = Math.max(best, hit);
+    });
+    return {...f, conf:best};
+  });
+  // Identity score: weighted fields + combo bonuses, capped 100
+  const fieldScore = fields.reduce((s,f) => s + f.conf, 0) / fields.length * 70;
+  const rawW = perms.reduce((s,p) => s + p.w, 0);
+  let bonus = Math.min(rawW, 60) / 60 * 20;
+  if(has.has('Location') && has.has('Routine')) bonus += 5;
+  if(has.has('Identity') || (has.has('Biometrics') && has.has('Media'))) bonus += 5;
+  const score = Math.min(100, Math.round(fieldScore + bonus));
+  return {perms, cats, fields, score};
+}
+
+function level(s){
+  if(s >= 75) return {t:'Fully identifiable', sub:'Enough to know who you are, where you sleep, and who you love.', c:'var(--crit)'};
+  if(s >= 50) return {t:'Highly identifiable', sub:'A determined party could re-identify you with little extra data.', c:'var(--high)'};
+  if(s >= 25) return {t:'Partially profiled', sub:'Builds a useful marketing profile but needs help to name you.', c:'var(--mid)'};
+  return {t:'Low exposure', sub:'Little personal data available from these permissions alone.', c:'var(--low)'};
+}
+
+const NEED = {
+ 'Flashlight app':['camera'], 'Weather':['loc_coarse','internet'], 'Banking':['camera','faceid','internet'],
+ 'Ride hailing':['loc_fine','internet'], 'Fitness tracker':['health','bt','internet'], 'Keyboard app':['internet'],
+ 'Messaging':['contacts','camera','mic','photos','internet','notif'], 'Social media':['camera','photos','internet','notif'],
+};
+
+function analyze(){
+  parsePaste(); renderPerms();
+  const name = $('#appName').value.trim() || 'This app';
+  const {perms, cats, fields, score} = compute();
+  if(!perms.length){ $('#out').innerHTML = '<div class="empty"><b>No permissions selected</b>Tick at least one permission, or paste some above.</div>'; return; }
+  const L = level(score);
+  const maxC = Math.max(...Object.values(cats));
+  const catRows = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,v]) =>
+    `<div class="row"><span>${c}</span><div class="bar"><i style="width:${v/maxC*100}%"></i></div><span class="n">${v}</span></div>`).join('');
+  const prof = fields.map(f => {
+    const tag = f.conf >= 1 ? '<span class="tag t-high">Known</span>' : f.conf > 0 ? '<span class="tag t-mid">Guessable</span>' : '<span class="tag t-low">Hidden</span>';
+    return `<div class="p"><span class="k">${f.k}</span><span>${f.conf>0?f.ex:'<span style="color:var(--muted)">Not exposed</span>'}${tag}</span></div>`;
+  }).join('');
+  const infer = Object.keys(cats).filter(c => INFER[c]).map(c => `<li><b>${INFER[c].label}</b><span>${INFER[c].detail}</span></li>`).join('');
+  const need = NEED[name];
+  let excess = '';
+  if(need){
+    const extra = perms.filter(p => !need.includes(p.id));
+    if(extra.length) excess = `<div class="section"><h3>Asks for more than it needs</h3><ul class="list">${extra.map(p=>`<li><b>${p.label}</b><span>Not required for a typical ${esc(name.toLowerCase())}. Consider denying it.</span></li>`).join('')}</ul></div>`;
+  }
+  const tips = [];
+  if(selected.has('loc_bg')) tips.push(['Set location to “While using”','Background location is the single biggest identity leak.']);
+  if(selected.has('loc_fine')) tips.push(['Turn off precise location','Approximate location is enough for weather, news and most shopping apps.']);
+  if(selected.has('contacts')) tips.push(['Deny contacts','You leak your friends’ data too, without their consent.']);
+  if(selected.has('photos')) tips.push(['Use “Selected photos only”','Share individual photos rather than your whole library.']);
+  if(selected.has('tracking')) tips.push(['Ask app not to track','Reset or delete your advertising ID in system settings.']);
+  if(selected.has('a11y')||selected.has('notif')) tips.push(['Revoke screen/notification access','These can read everything on screen, including bank codes.']);
+  const tipHtml = tips.length ? `<div class="section"><h3>How to shrink your profile</h3><ul class="list">${tips.map(t=>`<li><b>${t[0]}</b><span>${t[1]}</span></li>`).join('')}</ul></div>` : '';
+
+  $('#out').innerHTML = `
+    <h2>Identity reconstruction · ${esc(name)}</h2>
+    <div class="score">
+      <div class="ring" style="--c:${L.c};background:conic-gradient(${L.c} ${score}%, var(--surface-2) 0)"><div><div><b>${score}</b><small>/ 100</small></div></div></div>
+      <div><p class="verdict" style="color:${L.c}">${L.t}</p><p class="verdict-sub">${L.sub}</p><p class="verdict-sub" style="margin-top:6px">${perms.length} permissions · ${Object.keys(cats).length} data categories exposed</p></div>
+    </div>
+    <div class="section"><h3>The profile ${esc(name)} could build of you</h3><div class="profile">${prof}</div></div>
+    <div class="section bars"><h3>Data collected, by category</h3>${catRows}</div>
+    <div class="section"><h3>What that data reveals</h3><ul class="list">${infer}</ul></div>
+    ${excess}${tipHtml}
+    ${renderCompare()}`;
+  window._last = {name, score, n:perms.length, level:L.t};
+}
+
+function renderCompare(){
+  if(!comparisons.length) return '';
+  const rows = comparisons.slice().sort((a,b)=>b.score-a.score).map((c,i) =>
+    `<tr><td>${esc(c.name)}</td><td>${c.n}</td><td><b>${c.score}</b></td><td>${c.level}</td><td><button data-rm="${esc(c.name)}" aria-label="Remove">✕</button></td></tr>`).join('');
+  return `<div class="compare section"><h3>Your apps, ranked by exposure</h3><table><thead><tr><th>App</th><th>Perms</th><th>Score</th><th>Level</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+$('#out').addEventListener('click', e => {
+  const n = e.target.dataset.rm; if(n === undefined) return;
+  comparisons = comparisons.filter(c => c.name !== n);
+  try{ localStorage.setItem('permiscope', JSON.stringify(comparisons)); }catch(err){}
+  analyze();
+});
+$('#analyze').onclick = analyze;
+$('#save').onclick = () => {
+  analyze(); if(!window._last) return;
+  comparisons = comparisons.filter(c => c.name !== window._last.name).concat(window._last);
+  try{ localStorage.setItem('permiscope', JSON.stringify(comparisons)); }catch(err){}
+  analyze();
+};
+$('#clear').onclick = () => { selected.clear(); $('#paste').value=''; $('#appName').value=''; renderPerms(); window._last=null;
+  $('#out').innerHTML = '<div class="empty"><b>No app analysed yet</b>Pick a preset or tick a few permissions, then build the profile.</div>'; };
+renderPerms();
+</script>
+</body>
+</html>
